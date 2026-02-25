@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assembly Hub — Dashboard</title>
+  <link rel="manifest" href="/dashboard/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface2: #f8fafc;
+      --border: #e2e8f0;
+      --accent: #d97706;
+      --accent2: #2563eb;
+      --success: #059669;
+      --danger: #dc2626;
+      --text: #0f172a;
+      --muted: #64748b;
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-body: 'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.06) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(241,245,249,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; gap: 2rem;
+      height: 64px;
+    }
+
+    .logo { font-family: var(--font-display); font-size: 1.8rem; letter-spacing: 2px; color: var(--accent); }
+    .logo span { color: var(--text); }
+
+    .ws-status { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+    .ws-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); transition: background 0.3s; }
+    .ws-dot.connected { background: var(--success); box-shadow: 0 0 8px var(--success); }
+
+    .header-right { margin-left: auto; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
+
+    main {
+      position: relative; z-index: 1;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      height: calc(100vh - 64px);
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-section { border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+    .section-header {
+      padding: 0.9rem 1.25rem 0.6rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .section-title {
+      font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent);
+    }
+
+    .section-badge { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); }
+
+    .upload-zone {
+      margin: 0 1.25rem 0.9rem;
+      border: 2px dashed var(--border);
+      border-radius: 8px; padding: 1rem;
+      text-align: center; cursor: pointer;
+      transition: all 0.2s; position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(245,158,11,0.05); }
+    .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-zone-icon { font-size: 1.5rem; }
+    .upload-zone-text { font-size: 0.75rem; color: var(--muted); font-family: var(--font-mono); margin-top: 0.25rem; }
+    .upload-zone-text strong { color: var(--text); display: block; }
+
+    .upload-progress { margin: 0 1.25rem 0.75rem; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; display: none; }
+    .upload-progress.active { display: block; }
+    .upload-progress-bar { height: 100%; background: var(--accent); border-radius: 2px; animation: pbar 1s ease-in-out infinite; }
+    @keyframes pbar { 0%,100%{width:30%;margin-left:0} 50%{width:60%;margin-left:20%} }
+
+    .doc-list { overflow-y: auto; max-height: 190px; padding: 0 1.25rem 0.75rem; }
+    .doc-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.55rem 0.7rem; border-radius: 6px;
+      border: 1px solid var(--border); margin-bottom: 0.35rem;
+      cursor: pointer; transition: all 0.15s; background: var(--surface);
+    }
+    .doc-item:hover { border-color: var(--accent2); background: var(--surface2); }
+    .doc-item.selected { border-color: var(--accent); background: rgba(245,158,11,0.08); }
+    .doc-icon { font-size: 1rem; flex-shrink: 0; }
+    .doc-info { flex: 1; min-width: 0; }
+    .doc-name { font-size: 0.78rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .doc-meta { font-family: var(--font-mono); font-size: 0.62rem; color: var(--muted); margin-top: 1px; }
+    .doc-delete { background: none; border: none; color: var(--muted); cursor: pointer; padding: 2px 5px; border-radius: 4px; font-size: 0.85rem; transition: all 0.15s; }
+    .doc-delete:hover { color: var(--danger); background: rgba(239,68,68,0.1); }
+
+    .centers-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .add-center-form { padding: 0 1.25rem 0.75rem; display: flex; gap: 0.4rem; }
+    .add-center-form input[type="text"] {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 0.45rem 0.7rem; border-radius: 6px;
+      font-family: var(--font-body); font-size: 0.8rem; outline: none;
+    }
+    .add-center-form input[type="text"]:focus { border-color: var(--accent2); }
+    .add-center-form input[type="color"] { width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 6px; padding: 2px; background: var(--surface); cursor: pointer; }
+
+    .btn { padding: 0.45rem 0.9rem; border: none; border-radius: 6px; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: #d97706; }
+    .btn-sm { padding: 0.28rem 0.55rem; font-size: 0.65rem; }
+    .btn-danger { background: rgba(239,68,68,0.12); color: var(--danger); border: 1px solid rgba(239,68,68,0.25); }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent2); color: var(--accent2); }
+
+    .center-list { flex: 1; overflow-y: auto; padding: 0 1.25rem 1rem; }
+    .center-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.6rem; overflow: hidden; }
+    .center-card.previewing { border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+    .center-card-header { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.75rem; transition: background 0.15s; border-radius: 8px 8px 0 0; }
+    .center-card-header:hover { background: rgba(37,99,235,0.04); }
+    .center-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .center-name-label { font-size: 0.83rem; font-weight: 500; flex: 1; }
+    .center-status { font-family: var(--font-mono); font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; background: rgba(239,68,68,0.12); color: var(--danger); }
+    .center-status.online { background: rgba(16,185,129,0.12); color: var(--success); }
+    .center-card-body { padding: 0 0.75rem 0.65rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    .center-assigned { font-family: var(--font-mono); font-size: 0.63rem; color: var(--muted); padding: 0.3rem 0.5rem; background: var(--surface2); border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .center-assigned.has-doc { color: var(--accent2); }
+    .center-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+    .content-area { display: flex; flex-direction: column; overflow: hidden; }
+    .toolbar { padding: 0.85rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; flex-shrink: 0; background: var(--surface); }
+    .toolbar-label { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+    .selected-doc-badge { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); padding: 0.28rem 0.7rem; border-radius: 4px; }
+    .page-nav { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
+    .page-nav-btn { width: 30px; height: 30px; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .page-nav-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+    .page-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .page-indicator { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); min-width: 60px; text-align: center; }
+
+    .preview-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; overflow-x: auto; }
+    .preview-tab { padding: 0.55rem 1.1rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
+    .preview-tab:hover { color: var(--text); }
+    .preview-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .preview-area { flex: 1; overflow: auto; padding: 1.5rem; background: #fff; color: #111; }
+    .preview-area h1,.preview-area h2,.preview-area h3 { color: #1a1a2e; margin-bottom: 0.5rem; margin-top: 1rem; }
+    .preview-area p { margin-bottom: 0.6rem; line-height: 1.6; }
+    .preview-area table { border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+    .preview-area .table-wrap { width: 100%; overflow-x: auto; margin-bottom: 0.5rem; }
+    .preview-area td,.preview-area th { border: 1px solid #ddd; padding: 6px 10px; }
+    .preview-area tr:nth-child(even) td { background: #f8f8f8; }
+
+    .preview-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: var(--bg) !important; color: var(--muted) !important; font-family: var(--font-mono); font-size: 0.82rem; gap: 0.75rem; }
+
+    .modal-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; width: 380px; max-width: 90vw; transform: translateY(10px); transition: transform 0.2s; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal h3 { font-family: var(--font-display); font-size: 1.4rem; letter-spacing: 1px; color: var(--accent); margin-bottom: 1rem; }
+    .modal select { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.6rem 0.75rem; border-radius: 6px; font-family: var(--font-body); font-size: 0.82rem; margin-bottom: 0.75rem; outline: none; appearance: auto; }
+    .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+
+    .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 300; }
+    .toast { padding: 0.6rem 1rem; border-radius: 6px; font-family: var(--font-mono); font-size: 0.72rem; background: var(--surface); border: 1px solid var(--border); color: var(--text); animation: slideIn 0.2s ease; max-width: 280px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+    .toast.success { border-color: var(--success); color: var(--success); }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+    @keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+    .empty-state { padding: 1.2rem; text-align: center; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ASSEMBLY<span>HUB</span></div>
+  <div class="ws-status">
+    <div class="ws-dot" id="wsDot"></div>
+    <span id="wsLabel">Connecting...</span>
+  </div>
+  <div class="header-right" id="serverIP"></div>
+</header>
+
+<main>
+  <aside class="sidebar">
+
+    <!-- Documents -->
+    <div class="sidebar-section">
+      <div class="section-header">
+        <span class="section-title">📄 Documents</span>
+        <span class="section-badge" id="docCount">0</span>
+      </div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.docx,.doc" />
+        <div class="upload-zone-icon">⬆️</div>
+        <div class="upload-zone-text"><strong>Upload Instruction File</strong>Excel or Word</div>
+      </div>
+      <div class="upload-progress" id="uploadProgress"><div class="upload-progress-bar"></div></div>
+      <div class="doc-list" id="docList"><div class="empty-state">No documents yet</div></div>
+    </div>
+
+    <!-- Centers -->
+    <div class="centers-section">
+      <div class="section-header">
+        <span class="section-title">🖥️ Display Centers</span>
+        <span class="section-badge" id="centerCount">0</span>
+      </div>
+      <div class="add-center-form">
+        <input type="text" id="centerNameInput" placeholder="Center name..." maxlength="30" />
+        <input type="color" id="centerColorInput" value="#2563eb" />
+        <button class="btn btn-primary btn-sm" onclick="addCenter()">+ ADD</button>
+      </div>
+      <div class="center-list" id="centerList"><div class="empty-state">No centers — add one above</div></div>
+    </div>
+
+  </aside>
+
+  <div class="content-area">
+    <div class="toolbar">
+      <span class="toolbar-label">Preview</span>
+      <span class="selected-doc-badge" id="previewDocName">No document selected</span>
+      <div class="page-nav" id="pageNav" style="display:none">
+        <button class="page-nav-btn" id="prevPage" onclick="changePage(-1)">‹</button>
+        <span class="page-indicator" id="pageIndicator">1 / 1</span>
+        <button class="page-nav-btn" id="nextPage" onclick="changePage(1)">›</button>
+      </div>
+    </div>
+    <div class="preview-tabs" id="previewTabs" style="display:none"></div>
+    <div class="preview-area" id="previewArea">
+      <div class="preview-empty">
+        <div class="preview-empty-icon">📋</div>
+        <div>Upload a document and click it to preview</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Assign Modal -->
+<div class="modal-overlay" id="assignModal">
+  <div class="modal">
+    <h3>Assign Document</h3>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;font-family:var(--font-mono)" id="assignCenterName"></p>
+    <select id="assignDocSelect"></select>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAssign()">Assign</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+let ws, documents = {}, centers = {}, selectedDocId = null;
+let currentPreviewPage = 0, assigningCenterId = null;
+
+// ─── WebSocket ────────────────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => { setWsStatus(true); ws.send(JSON.stringify({ type: 'REGISTER_DASHBOARD' })); };
+  ws.onclose = () => { setWsStatus(false); setTimeout(connectWS, 3000); };
+  ws.onmessage = ({ data }) => handleMessage(JSON.parse(data));
+}
+
+function handleMessage(msg) {
+  if (msg.type === 'INIT') {
+    documents = {}; centers = {};
+    msg.documents.forEach(d => documents[d.id] = d);
+    msg.centers.forEach(c => centers[c.id] = c);
+    renderDocList(); renderCenterList();
+  } else if (msg.type === 'DOCUMENT_ADDED') {
+    documents[msg.document.id] = msg.document;
+    renderDocList(); toast(`Uploaded: ${msg.document.name}`, 'success');
+  } else if (msg.type === 'DOCUMENT_DELETED') {
+    delete documents[msg.id];
+    if (selectedDocId === msg.id) clearPreview();
+    renderDocList();
+  } else if (msg.type === 'CENTER_ADDED') {
+    centers[msg.center.id] = msg.center; renderCenterList();
+  } else if (msg.type === 'CENTER_UPDATED') {
+    centers[msg.center.id] = msg.center; renderCenterList();
+  } else if (msg.type === 'CENTER_DELETED') {
+    delete centers[msg.id]; renderCenterList();
+  }
+}
+
+function setWsStatus(ok) {
+  document.getElementById('wsDot').className = 'ws-dot' + (ok ? ' connected' : '');
+  document.getElementById('wsLabel').textContent = ok ? 'LIVE' : 'Reconnecting...';
+}
+
+// ─── Documents ────────────────────────────────────────────────────────────────
+function renderDocList() {
+  const el = document.getElementById('docList');
+  const docs = Object.values(documents);
+  document.getElementById('docCount').textContent = docs.length;
+  if (!docs.length) { el.innerHTML = '<div class="empty-state">No documents yet</div>'; return; }
+  el.innerHTML = docs.map(d => `
+    <div class="doc-item ${selectedDocId === d.id ? 'selected' : ''}" onclick="selectDoc('${d.id}')">
+      <span class="doc-icon">${d.type === 'excel' ? '📊' : '📝'}</span>
+      <div class="doc-info">
+        <div class="doc-name" title="${esc(d.name)}">${esc(d.name)}</div>
+        <div class="doc-meta">${d.pageCount} page${d.pageCount!==1?'s':''} · ${d.type.toUpperCase()}</div>
+      </div>
+      <button class="doc-delete" onclick="deleteDoc(event,'${d.id}')">✕</button>
+    </div>`).join('');
+}
+
+async function uploadFile(file) {
+  const prog = document.getElementById('uploadProgress');
+  prog.classList.add('active');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('name', file.name);
+  try {
+    const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+  } catch(e) { toast(`Upload failed: ${e.message}`, 'error'); }
+  finally { prog.classList.remove('active'); document.getElementById('fileInput').value = ''; }
+}
+
+async function deleteDoc(e, id) {
+  e.stopPropagation();
+  if (!confirm('Delete this document?')) return;
+  await fetch(`/api/documents/${id}`, { method: 'DELETE' });
+}
+
+async function previewCenter(centerId) {
+  const c = centers[centerId];
+  if (!c) return;
+
+  // Toggle — clicking the same center again clears the preview
+  if (window._previewingCenterId === centerId) {
+    window._previewingCenterId = null;
+    clearPreview();
+    return;
+  }
+
+  if (!c.assignedDoc) { toast(`${c.name} has no document assigned`, 'error'); return; }
+
+  try {
+    const res = await fetch(`/api/documents/${c.assignedDoc.id}/full`);
+    const doc = await res.json();
+    if (doc.error) { toast('Could not load document', 'error'); return; }
+
+    selectedDocId = doc.id;
+    window._previewingCenterId = centerId;
+    renderDocList();
+
+    // Show center context in toolbar
+    document.getElementById('previewDocName').innerHTML =
+      `<span style="color:var(--muted);font-size:0.65rem">▶</span> ${esc(c.name)} &nbsp;<span style="color:var(--muted)">·</span>&nbsp; ${esc(doc.name)}`;
+
+    // Jump to the page that center is currently on
+    window._previewPages = doc.pages;
+    const startPage = c.currentPage || 0;
+
+    const tabsEl = document.getElementById('previewTabs');
+    const pageNav = document.getElementById('pageNav');
+
+    if (doc.pages.length > 1) {
+      tabsEl.style.display = 'flex';
+      tabsEl.innerHTML = doc.pages.map((p,i) =>
+        `<div class="preview-tab ${i===startPage?'active':''}" onclick="switchTab(${i})">${esc(p.title)}</div>`
+      ).join('');
+      pageNav.style.display = 'flex';
+      updatePageNav(startPage, doc.pages.length);
+    } else {
+      tabsEl.style.display = 'none';
+      pageNav.style.display = 'none';
+    }
+
+    renderPage(startPage);
+  } catch(e) { toast('Could not load preview', 'error'); }
+}
+
+async function selectDoc(id) {
+  try {
+    const res = await fetch(`/api/documents/${id}/full`);
+    const doc = await res.json();
+    if (doc.error) { toast('Could not load preview', 'error'); return; }
+    selectedDocId = id;
+    renderDocList();
+    showPreview(doc);
+  } catch(e) { toast('Could not load preview', 'error'); }
+}
+
+function showPreview(doc) {
+  currentPreviewPage = 0;
+  const pages = doc.pages || [];
+  document.getElementById('previewDocName').textContent = doc.name;
+  const tabsEl = document.getElementById('previewTabs');
+  const pageNav = document.getElementById('pageNav');
+  window._previewPages = pages;
+
+  if (pages.length > 1) {
+    tabsEl.style.display = 'flex';
+    tabsEl.innerHTML = pages.map((p,i) =>
+      `<div class="preview-tab ${i===0?'active':''}" onclick="switchTab(${i})">${esc(p.title)}</div>`
+    ).join('');
+    pageNav.style.display = 'flex';
+    updatePageNav(0, pages.length);
+  } else {
+    tabsEl.style.display = 'none';
+    pageNav.style.display = 'none';
+  }
+  renderPage(0);
+}
+
+function renderPage(idx) {
+  const pages = window._previewPages || [];
+  const area = document.getElementById('previewArea');
+  let html = pages[idx] ? pages[idx].html : '<div class="preview-empty"><div>No content</div></div>';
+  html = html.replace(/<table/gi, '<div class="table-wrap"><table').replace(/<\/table>/gi, '</table></div>');
+  area.innerHTML = html;
+  currentPreviewPage = idx;
+  updatePageNav(idx, pages.length);
+}
+
+function switchTab(idx) {
+  document.querySelectorAll('.preview-tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  renderPage(idx);
+}
+
+function changePage(dir) {
+  const pages = window._previewPages || [];
+  const n = currentPreviewPage + dir;
+  if (n >= 0 && n < pages.length) switchTab(n);
+}
+
+function updatePageNav(cur, total) {
+  document.getElementById('pageIndicator').textContent = `${cur+1} / ${total}`;
+  document.getElementById('prevPage').disabled = cur === 0;
+  document.getElementById('nextPage').disabled = cur === total - 1;
+}
+
+function clearPreview() {
+  selectedDocId = null;
+  window._previewPages = [];
+  window._previewingCenterId = null;
+  document.getElementById('previewDocName').textContent = 'No document selected';
+  document.getElementById('previewArea').innerHTML = '<div class="preview-empty"><div class="preview-empty-icon">📋</div><div>Upload a document and click it to preview</div></div>';
+  document.getElementById('previewTabs').style.display = 'none';
+  document.getElementById('pageNav').style.display = 'none';
+  renderDocList();
+}
+
+// ─── Centers ──────────────────────────────────────────────────────────────────
+function renderCenterList() {
+  const el = document.getElementById('centerList');
+  const cs = Object.values(centers);
+  document.getElementById('centerCount').textContent = cs.length;
+  if (!cs.length) { el.innerHTML = '<div class="empty-state">No centers — add one above</div>'; return; }
+  el.innerHTML = cs.map(c => {
+    const assigned = c.assignedDoc
+      ? `<div class="center-assigned has-doc">📄 ${esc(c.assignedDoc.name)}</div>`
+      : `<div class="center-assigned">No document assigned</div>`;
+    const displayUrl = `${location.origin}/display/${c.slug || c.id}`;
+    const pageCtrl = c.assignedDoc ? `
+      <button class="btn btn-ghost btn-sm" onclick="centerPage('${c.id}',-1)">‹</button>
+      <button class="btn btn-ghost btn-sm" onclick="centerPage('${c.id}',1)">›</button>` : '';
+    return `
+      <div class="center-card ${window._previewingCenterId === c.id ? 'previewing' : ''}">
+        <div class="center-card-header" onclick="previewCenter('${c.id}')" style="cursor:pointer" title="Click to preview">
+          <div class="center-dot" style="background:${c.color}"></div>
+          <span class="center-name-label">${esc(c.name)}</span>
+          <span class="center-status ${c.connected?'online':''}">${c.connected?'ONLINE':'OFFLINE'}</span>
+        </div>
+        <div class="center-card-body">
+          ${assigned}
+          <div class="center-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openAssign('${c.id}')">📋 Assign</button>
+            <button class="btn btn-ghost btn-sm" onclick="copyLink('${displayUrl}')">🔗 Link</button>
+            ${pageCtrl}
+            <button class="btn btn-danger btn-sm" onclick="deleteCenter('${c.id}')">✕</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function addCenter() {
+  const name = document.getElementById('centerNameInput').value.trim();
+  const color = document.getElementById('centerColorInput').value;
+  if (!name) { toast('Enter a center name', 'error'); return; }
+  const res = await fetch('/api/centers', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name,color}) });
+  const data = await res.json();
+  if (data.success) { document.getElementById('centerNameInput').value = ''; toast(`"${name}" created`, 'success'); }
+}
+
+async function deleteCenter(id) {
+  if (!confirm('Delete this center?')) return;
+  await fetch(`/api/centers/${id}`, { method: 'DELETE' });
+}
+
+async function centerPage(centerId, dir) {
+  const c = centers[centerId];
+  if (!c) return;
+  const page = Math.max(0, (c.currentPage || 0) + dir);
+  await fetch(`/api/centers/${centerId}/page`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({page}) });
+}
+
+// ─── Assign Modal ─────────────────────────────────────────────────────────────
+function openAssign(centerId) {
+  assigningCenterId = centerId;
+  const c = centers[centerId];
+  document.getElementById('assignCenterName').textContent = `Center: ${c.name}`;
+  document.getElementById('assignDocSelect').innerHTML =
+    '<option value="">— Remove assignment —</option>' +
+    Object.values(documents).map(d =>
+      `<option value="${d.id}" ${c.assignedDoc?.id===d.id?'selected':''}>${esc(d.name)}</option>`
+    ).join('');
+  document.getElementById('assignModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('assignModal').classList.remove('open'); assigningCenterId = null; }
+
+async function confirmAssign() {
+  const docId = document.getElementById('assignDocSelect').value;
+  if (!assigningCenterId) return;
+  await fetch(`/api/centers/${assigningCenterId}/assign`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({documentId:docId||null}) });
+  closeModal();
+  toast(docId ? 'Document assigned!' : 'Assignment removed', 'success');
+}
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+function fallbackCopy(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { const o = document.getElementById('linkOverlay'); if(o) o.remove(); }, 800);
+  } catch(e) { btn.textContent = 'Select manually'; }
+  document.body.removeChild(ta);
+}
+function copyLink(url) {
+  // Show URL in a visible popup (clipboard blocked on HTTP)
+  const box = document.createElement('div');
+  box.style.cssText = `position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center`;
+  box.id = 'linkOverlay';
+  box.innerHTML = `
+    <div style="background:#fff;border-radius:10px;padding:1.5rem;width:480px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.7rem;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.1em">Display URL — copy and open on tablet</div>
+      <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:0.75rem;font-family:'IBM Plex Mono',monospace;font-size:0.78rem;color:#0f172a;word-break:break-all;margin-bottom:1rem;user-select:all">${url}</div>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+        <button onclick="document.getElementById('linkOverlay').remove()" style="padding:0.45rem 1rem;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:0.72rem">Close</button>
+        <button onclick="fallbackCopy('${url}',this)" style="padding:0.45rem 1rem;border-radius:6px;border:none;background:#d97706;color:#fff;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;font-weight:600">Copy</button>
+      </div>
+    </div>`;
+  document.body.appendChild(box);
+  box.addEventListener('click', e => { if(e.target===box) box.remove(); });
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, type='') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`; el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ─── Events ───────────────────────────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', e => { if(e.target.files[0]) uploadFile(e.target.files[0]); });
+const uz = document.getElementById('uploadZone');
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('drag-over'); });
+uz.addEventListener('dragleave', () => uz.classList.remove('drag-over'));
+uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('drag-over'); if(e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]); });
+document.getElementById('assignModal').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
+document.getElementById('centerNameInput').addEventListener('keydown', e => { if(e.key==='Enter') addCenter(); });
+document.getElementById('serverIP').textContent = location.host;
+
+connectWS();
+</script>
+</body>
+</html>

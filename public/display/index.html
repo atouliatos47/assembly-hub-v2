@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assembly Hub — Display</title>
+  <link rel="manifest" href="/display/manifest.json" />
+  <meta name="theme-color" content="#f1f5f9" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --accent: #d97706;
+      --accent2: #2563eb;
+      --success: #059669;
+      --danger: #dc2626;
+      --text: #0f172a;
+      --muted: #64748b;
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-body: 'IBM Plex Sans', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ── Top Bar ── */
+    .topbar {
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 1.5rem;
+      gap: 1rem;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .topbar-logo {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      letter-spacing: 2px;
+      color: var(--accent);
+    }
+    .topbar-logo span { color: var(--text); }
+
+    .topbar-divider {
+      width: 1px; height: 20px;
+      background: var(--border);
+    }
+
+    .center-label {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.05em;
+    }
+
+    .center-color-bar {
+      width: 4px;
+      height: 28px;
+      border-radius: 2px;
+      background: var(--accent2);
+      flex-shrink: 0;
+    }
+
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .doc-title {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+      max-width: 280px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .page-badge {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .ws-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--danger);
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    .ws-dot.connected { background: var(--success); box-shadow: 0 0 6px var(--success); }
+
+    /* ── Tab Bar ── */
+    .tab-bar {
+      height: 40px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      overflow-x: auto;
+      flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+
+    .tab {
+      padding: 0 1.25rem;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+      cursor: default;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: rgba(217,119,6,0.04);
+    }
+
+    /* ── Main layout ── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── Content ── */
+    .content-wrap {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+    }
+
+    .doc-content {
+      padding: 1rem 1.25rem;
+      min-height: 100%;
+      width: 100%;
+    }
+
+    /* Make tables scroll horizontally rather than get clipped */
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+    }
+
+    /* Document styling */
+    .doc-content h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+      margin-top: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--accent);
+    }
+    .doc-content h1:first-child { margin-top: 0; }
+
+    .doc-content h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.6rem;
+      margin-top: 1.25rem;
+    }
+
+    .doc-content h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin-bottom: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .doc-content p {
+      line-height: 1.75;
+      margin-bottom: 0.75rem;
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .doc-content table {
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      background: var(--surface);
+      white-space: nowrap;
+    }
+
+    .doc-content td, .doc-content th {
+      border: 1px solid var(--border);
+      padding: 7px 12px;
+      text-align: left;
+    }
+
+    .doc-content tr:first-child td {
+      background: #f1f5f9;
+      font-weight: 600;
+    }
+
+    .doc-content tr:nth-child(even) td {
+      background: #fafbfc;
+    }
+
+    .doc-content tr:hover td {
+      background: rgba(37,99,235,0.05);
+    }
+
+    .doc-content ul, .doc-content ol {
+      padding-left: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .doc-content li {
+      line-height: 1.75;
+      margin-bottom: 0.25rem;
+    }
+
+    /* ── Empty / Waiting States ── */
+    .state-screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      background: var(--bg);
+    }
+
+    .state-icon {
+      font-size: 4rem;
+      opacity: 0.2;
+    }
+
+    .state-title {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      letter-spacing: 2px;
+      color: var(--text);
+      opacity: 0.4;
+    }
+
+    .state-sub {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* Pulse animation for waiting */
+    .state-pulse {
+      display: flex;
+      gap: 6px;
+      margin-top: 0.5rem;
+    }
+    .state-pulse span {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.4;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    .state-pulse span:nth-child(2) { animation-delay: 0.2s; }
+    .state-pulse span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%,80%,100%{transform:scale(0.8);opacity:0.3} 40%{transform:scale(1.2);opacity:1} }
+
+    /* ── Page transition ── */
+    .doc-content {
+      animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Reconnecting banner ── */
+    .reconnect-banner {
+      position: fixed;
+      top: 52px; left: 0; right: 0;
+      background: var(--danger);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      text-align: center;
+      padding: 0.4rem;
+      z-index: 50;
+      display: none;
+    }
+    .reconnect-banner.show { display: block; }
+
+    /* ── Fullscreen hint ── */
+    .fs-hint {
+      position: fixed;
+      bottom: 1rem; right: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+      z-index: 10;
+    }
+    .fs-hint:hover { opacity: 1; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-logo">ASSEMBLY<span>HUB</span></div>
+    <div class="topbar-divider"></div>
+    <div class="center-color-bar" id="centerColorBar"></div>
+    <div class="center-label" id="centerLabel">Loading...</div>
+    <div class="topbar-right">
+      <span class="doc-title" id="docTitle"></span>
+      <span class="page-badge" id="pageBadge" style="display:none"></span>
+      <div class="ws-dot" id="wsDot"></div>
+    </div>
+  </div>
+
+  <!-- Reconnecting banner -->
+  <div class="reconnect-banner" id="reconnectBanner">⚠ Connection lost — reconnecting...</div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar" id="tabBar" style="display:none"></div>
+
+  <!-- Content -->
+  <div class="content-wrap" id="contentWrap">
+    <div class="state-screen" id="stateScreen">
+      <div class="state-icon">🏭</div>
+      <div class="state-title">WAITING FOR INSTRUCTIONS</div>
+      <div class="state-sub" id="stateSub">Connecting to server...</div>
+      <div class="state-pulse">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen hint -->
+<div class="fs-hint" id="fsHint" onclick="toggleFullscreen()">⛶ Fullscreen</div>
+
+<script>
+  // ─── Get center ref from URL (/display/assembly-1 or /display/UUID) ─────────
+  const centerRef = location.pathname.split('/display/')[1]?.replace(/\/$/, '');
+  let centerId = null; // resolved after slug lookup
+
+  if (!centerRef) {
+    document.getElementById('stateSub').textContent = 'Invalid display URL — missing center name';
+  }
+
+  let ws, currentDoc = null, currentPage = 0;
+
+  // ─── WebSocket ───────────────────────────────────────────────────────────────
+  function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+    ws.onopen = () => {
+      setConnected(true);
+      ws.send(JSON.stringify({ type: 'REGISTER_DISPLAY', centerId }));
+    };
+
+    ws.onclose = () => {
+      setConnected(false);
+      setTimeout(connectWS, 3000);
+    };
+
+    ws.onmessage = ({ data }) => {
+      try { handleMessage(JSON.parse(data)); } catch(e) {}
+    };
+  }
+
+  function handleMessage(msg) {
+    if (msg.type === 'INIT') {
+      // Find our center info
+      const center = msg.centers.find(c => c.id === centerId);
+      if (center) updateCenterInfo(center);
+      else {
+        document.getElementById('centerLabel').textContent = 'Unknown Center';
+        document.getElementById('stateSub').textContent = 'Center not found on server';
+      }
+    }
+
+    else if (msg.type === 'DOCUMENT_ASSIGNED') {
+      currentDoc = msg.document;
+      currentPage = msg.currentPage || 0;
+      renderDocument();
+    }
+
+    else if (msg.type === 'DOCUMENT_REMOVED') {
+      currentDoc = null;
+      currentPage = 0;
+      showWaiting('No document assigned to this center');
+    }
+
+    else if (msg.type === 'PAGE_CHANGE') {
+      currentPage = msg.page;
+      if (currentDoc) renderPage(currentPage);
+    }
+
+    else if (msg.type === 'CENTER_UPDATED') {
+      if (msg.center.id === centerId) {
+        updateCenterInfo(msg.center);
+      }
+    }
+  }
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
+  function updateCenterInfo(center) {
+    document.getElementById('centerLabel').textContent = center.name;
+    document.getElementById('centerColorBar').style.background = center.color;
+    document.title = `${center.name} — Assembly Hub`;
+  }
+
+  function renderDocument() {
+    if (!currentDoc || !currentDoc.pages) return;
+
+    const pages = currentDoc.pages;
+
+    // Update doc title
+    document.getElementById('docTitle').textContent = currentDoc.name;
+
+    // Build tab bar
+    const tabBar = document.getElementById('tabBar');
+    if (pages.length > 1) {
+      tabBar.style.display = 'flex';
+      tabBar.innerHTML = pages.map((p, i) =>
+        `<div class="tab ${i === currentPage ? 'active' : ''}" data-idx="${i}">${esc(p.title)}</div>`
+      ).join('');
+    } else {
+      tabBar.style.display = 'none';
+    }
+
+    renderPage(currentPage);
+  }
+
+  function renderPage(idx) {
+    const pages = currentDoc?.pages;
+    if (!pages || !pages[idx]) return;
+
+    currentPage = idx;
+
+    // Update tabs
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+
+    // Scroll tab into view
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+    // Update page badge
+    const badge = document.getElementById('pageBadge');
+    if (pages.length > 1) {
+      badge.style.display = 'inline';
+      badge.textContent = `${idx + 1} / ${pages.length}`;
+    } else {
+      badge.style.display = 'none';
+    }
+
+    // Render content — wrap tables for horizontal scroll
+    const wrap = document.getElementById('contentWrap');
+    let html = pages[idx].html;
+    html = html.replace(/<table/gi, '<div class="table-wrap"><table').replace(/<\/table>/gi, '</table></div>');
+    wrap.innerHTML = `<div class="doc-content">${html}</div>`;
+  }
+
+  function showWaiting(msg) {
+    document.getElementById('docTitle').textContent = '';
+    document.getElementById('pageBadge').style.display = 'none';
+    document.getElementById('tabBar').style.display = 'none';
+    document.getElementById('contentWrap').innerHTML = `
+      <div class="state-screen">
+        <div class="state-icon">📋</div>
+        <div class="state-title">WAITING FOR INSTRUCTIONS</div>
+        <div class="state-sub">${esc(msg)}</div>
+        <div class="state-pulse"><span></span><span></span><span></span></div>
+      </div>`;
+  }
+
+  function setConnected(ok) {
+    document.getElementById('wsDot').className = 'ws-dot' + (ok ? ' connected' : '');
+    document.getElementById('reconnectBanner').className = 'reconnect-banner' + (ok ? '' : ' show');
+    if (ok) document.getElementById('stateSub').textContent = 'Waiting for document assignment...';
+  }
+
+  // ─── Fullscreen ──────────────────────────────────────────────────────────────
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      document.getElementById('fsHint').textContent = '✕ Exit Fullscreen';
+    } else {
+      document.exitFullscreen();
+      document.getElementById('fsHint').textContent = '⛶ Fullscreen';
+    }
+  }
+
+  // Auto-hide fullscreen hint after 4 seconds
+  setTimeout(() => {
+    const hint = document.getElementById('fsHint');
+    hint.style.opacity = '0';
+    hint.style.transition = 'opacity 1s';
+    setTimeout(() => hint.style.display = 'none', 1000);
+  }, 4000);
+
+  // ─── Utils ───────────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ─── Resolve slug or ID then connect ──────────────────────────────────────
+  async function resolveAndConnect() {
+    try {
+      const res = await fetch(`/api/centers/resolve/${centerRef}`);
+      const data = await res.json();
+      if (data.error) {
+        document.getElementById('centerLabel').textContent = 'Unknown Center';
+        document.getElementById('stateSub').textContent = `No center found for "${centerRef}"`;
+        return;
+      }
+      centerId = data.id;
+      connectWS();
+    } catch(e) {
+      document.getElementById('stateSub').textContent = 'Could not reach server';
+      setTimeout(resolveAndConnect, 3000);
+    }
+  }
+
+  if (centerRef) resolveAndConnect();
+</script>
+</body>
+</html>
