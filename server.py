@@ -182,7 +182,13 @@ def static_files(filename):
 
 @app.route('/dashboard/manifest.json')
 def dashboard_manifest():
-    return send_from_directory('public/dashboard', 'manifest.json')
+    response = send_from_directory('public/dashboard', 'manifest.json')
+    response.headers['Content-Type'] = 'application/manifest+json'
+    return response
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory('public/icons', 'icon-192.png', mimetype='image/png')
 
 @app.route('/dashboard/<path:filename>')
 def dashboard_static(filename):
