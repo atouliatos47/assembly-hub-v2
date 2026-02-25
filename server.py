@@ -180,9 +180,17 @@ def display(center_ref):
 def static_files(filename):
     return send_from_directory('public', filename)
 
+@app.route('/dashboard/manifest.json')
+def dashboard_manifest():
+    return send_from_directory('public/dashboard', 'manifest.json')
+
 @app.route('/dashboard/<path:filename>')
-@login_required
 def dashboard_static(filename):
+    # Allow manifest and icons without login for PWA install
+    if filename in ['manifest.json', 'sw.js'] or filename.startswith('icons/'):
+        return send_from_directory('public/dashboard', filename)
+    if not session.get('logged_in'):
+        return redirect('/login')
     return send_from_directory('public/dashboard', filename)
 
 @app.route('/sw.js')
