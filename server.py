@@ -59,60 +59,52 @@ def doc_summary(doc):
     }
 
 # ─── File Parsing ──────────────────────────────────────────────────────────
-def parse_excel(filepath):
-    wb = load_workbook(filepath, data_only=True)
-    pages = []
-    for sheet_name in wb.sheetnames:
-        ws = wb[sheet_name]
-        rows_html = '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">'
-        for row in ws.iter_rows():
-            rows_html += '<tr>'
-            for cell in row:
-                val = cell.value if cell.value is not None else ''
-                bold = 'font-weight:bold;' if cell.font and cell.font.bold else ''
-                bg = ''
-                if cell.fill and cell.fill.fgColor and cell.fill.fgColor.type == 'rgb':
-                    rgb = cell.fill.fgColor.rgb
-                    if rgb and rgb != '00000000' and rgb != 'FFFFFFFF':
-                        bg = f'background-color:#{rgb[2:]};'
-                rows_html += f'<td style="{bold}{bg}padding:4px 8px;">{val}</td>'
-            rows_html += '</tr>'
-        rows_html += '</table>'
-        pages.append({'title': sheet_name, 'html': rows_html})
-    return pages
+def convert_to_pdf(filepath):
+    """Convert Excel or Word file to PDF using LibreOffice"""
+    import subprocess
+    out_dir = os.path.dirname(filepath)
+    result = subprocess.run(
+        ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', out_dir, filepath],
+        capture_output=True, text=True, timeout=60
+    )
+    if result.returncode != 0:
+        raise Exception(f'LibreOffice conversion failed: {result.stderr}')
 
-def parse_word(filepath):
-    doc = Document(filepath)
-    pages = []
-    current_title = 'Page 1'
-    current_html = ''
-    page_num = 1
+    # Find the generated PDF
+    base = os.path.splitext(filepath)[0]
+    pdf_path = base + '.pdf'
+    if not os.path.exists(pdf_path):
+        raise Exception('PDF file not found after conversion')
+    return pdf_path
 
-    for para in doc.paragraphs:
-        style = para.style.name if para.style else ''
-        text = para.text.strip()
+def parse_file_to_pdf(filepath, original_name):
+    """Convert to PDF and return a single page with embedded PDF viewer"""
+    pdf_path = convert_to_pdf(filepath)
 
-        if style.startswith('Heading 1') or style.startswith('Heading 2'):
-            # Save previous page if it has content
-            if current_html.strip():
-                pages.append({'title': current_title, 'html': current_html})
-            current_title = text or f'Section {page_num}'
-            tag = 'h1' if '1' in style else 'h2'
-            current_html = f'<{tag}>{text}</{tag}>'
-            page_num += 1
-        else:
-            if text:
-                current_html += f'<p>{para.text}</p>'
-            else:
-                current_html += '<br>'
+    # Read PDF and encode as base64 for inline display
+    import base64
+    with open(pdf_path, 'rb') as f:
+        pdf_data = base64.b64encode(f.read()).decode()
 
-    if current_html.strip():
-        pages.append({'title': current_title, 'html': current_html})
+    # Store PDF path for direct serving
+    pdf_id = os.path.basename(pdf_path)
 
-    if not pages:
-        pages.append({'title': 'Document', 'html': '<p>Empty document</p>'})
+    html = f'''
+    <div style="width:100%;height:100vh;display:flex;flex-direction:column;">
+      <object 
+        data="data:application/pdf;base64,{pdf_data}"
+        type="application/pdf"
+        style="width:100%;flex:1;min-height:600px;"
+      >
+        <embed 
+          src="data:application/pdf;base64,{pdf_data}" 
+          type="application/pdf"
+          style="width:100%;height:100vh;"
+        />
+      </object>
+    </div>'''
 
-    return pages
+    return [{'title': original_name, 'html': html, 'isPdf': True}]
 
 def make_slug(name):
     """Convert 'Assembly 1' → 'assembly-1', ensure uniqueness"""
@@ -236,12 +228,8 @@ def upload_document():
     file.save(filepath)
 
     try:
-        if ext in ['.xlsx', '.xls']:
-            pages = parse_excel(filepath)
-            doc_type = 'excel'
-        else:
-            pages = parse_word(filepath)
-            doc_type = 'word'
+        pages = parse_file_to_pdf(filepath, file.filename)
+        doc_type = 'pdf'
     except Exception as e:
         os.remove(filepath)
         return jsonify({'error': f'Failed to parse file: {str(e)}'}), 500
