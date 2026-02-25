@@ -185,9 +185,18 @@ def static_files(filename):
 def dashboard_static(filename):
     return send_from_directory('public/dashboard', filename)
 
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory('public', 'sw.js', mimetype='application/javascript')
+
+@app.route('/icons/<path:filename>')
+def icons(filename):
+    return send_from_directory('public/icons', filename)
+
 @app.route('/display/manifest.json')
 def display_manifest():
     return send_from_directory('public/display', 'manifest.json')
+
 
 # ─── Documents API ─────────────────────────────────────────────────────────
 @app.route('/api/documents', methods=['GET'])

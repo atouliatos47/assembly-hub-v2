@@ -613,6 +613,11 @@ document.getElementById('centerNameInput').addEventListener('keydown', e => { if
 document.getElementById('serverIP').textContent = location.host;
 
 connectWS();
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
