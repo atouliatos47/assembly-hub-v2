@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assembly Hub — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --accent: #d97706;
+      --accent2: #2563eb;
+      --danger: #dc2626;
+      --text: #0f172a;
+      --muted: #64748b;
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-body: 'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .login-card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 380px;
+      max-width: 90vw;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.08);
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      letter-spacing: 3px;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+    .logo span { color: var(--text); }
+
+    .tagline {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    .field-label {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.4rem;
+    }
+
+    .field-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.7rem 1rem;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 1.25rem;
+    }
+    .field-input:focus { border-color: var(--accent2); background: #fff; }
+
+    .login-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .login-btn:hover { background: #b45309; }
+    .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .error-msg {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--danger);
+      margin-top: 0.75rem;
+      text-align: center;
+      min-height: 1.2em;
+    }
+
+    .factory-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="factory-icon">🏭</div>
+    <div class="logo">ASSEMBLY<span>HUB</span></div>
+    <div class="tagline">Dashboard Access</div>
+
+    <div class="field-label">Password</div>
+    <input
+      type="password"
+      class="field-input"
+      id="passwordInput"
+      placeholder="Enter password..."
+      autocomplete="current-password"
+    />
+
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">ENTER</button>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <script>
+    async function doLogin() {
+      const password = document.getElementById('passwordInput').value;
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('errorMsg');
+
+      if (!password) { err.textContent = 'Please enter a password'; return; }
+
+      btn.disabled = true;
+      btn.textContent = 'CHECKING...';
+      err.textContent = '';
+
+      try {
+        const res = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          window.location.href = '/dashboard';
+        } else {
+          err.textContent = 'Incorrect password — try again';
+          btn.disabled = false;
+          btn.textContent = 'ENTER';
+          document.getElementById('passwordInput').select();
+        }
+      } catch(e) {
+        err.textContent = 'Could not reach server';
+        btn.disabled = false;
+        btn.textContent = 'ENTER';
+      }
+    }
+
+    // Enter key submits
+    document.getElementById('passwordInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+  </script>
+</body>
+</html>

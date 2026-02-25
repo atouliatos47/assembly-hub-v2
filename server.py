@@ -4,13 +4,20 @@ import json
 import uuid
 import socket
 from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory
+from functools import wraps
+from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
 from flask_sock import Sock
 from openpyxl import load_workbook
 from docx import Document
 
 app = Flask(__name__, static_folder='public')
 sock = Sock(app)
+
+# ─── Auth config ───────────────────────────────────────────────────────────
+# Set these as environment variables in Render dashboard for security
+# Defaults are used for local development only
+app.secret_key = os.environ.get('SECRET_KEY', 'assembly-hub-dev-secret-change-me')
+DASHBOARD_PASSWORD = os.environ.get('DASHBOARD_PASSWORD', 'assembly2024')
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -119,11 +126,49 @@ def make_slug(name):
     return slug
 
 
+# ─── Auth helpers ──────────────────────────────────────────────────────────
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect('/login')
+        return f(*args, **kwargs)
+    return decorated
+
+def api_login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('logged_in'):
+            return jsonify({'error': 'Unauthorised'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+# ─── Login routes ──────────────────────────────────────────────────────────
+@app.route('/login', methods=['GET'])
+def login_page():
+    return send_from_directory('public', 'login.html')
+
+@app.route('/login', methods=['POST'])
+def do_login():
+    data = request.json or {}
+    if data.get('password') == DASHBOARD_PASSWORD:
+        session['logged_in'] = True
+        session.permanent = True
+        return jsonify({'success': True})
+    return jsonify({'error': 'Incorrect password'}), 401
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
+
 @app.route('/')
+@login_required
 def index():
     return send_from_directory('public/dashboard', 'index.html')
 
 @app.route('/dashboard')
+@login_required
 def dashboard():
     return send_from_directory('public/dashboard', 'index.html')
 
@@ -136,6 +181,7 @@ def static_files(filename):
     return send_from_directory('public', filename)
 
 @app.route('/dashboard/<path:filename>')
+@login_required
 def dashboard_static(filename):
     return send_from_directory('public/dashboard', filename)
 
@@ -145,10 +191,12 @@ def display_manifest():
 
 # ─── Documents API ─────────────────────────────────────────────────────────
 @app.route('/api/documents', methods=['GET'])
+@api_login_required
 def get_documents():
     return jsonify([doc_summary(d) for d in documents.values()])
 
 @app.route('/api/documents/upload', methods=['POST'])
+@api_login_required
 def upload_document():
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
@@ -190,6 +238,7 @@ def upload_document():
     return jsonify({'success': True, 'document': doc_summary(doc)})
 
 @app.route('/api/documents/<doc_id>/full', methods=['GET'])
+@api_login_required
 def get_document_full(doc_id):
     doc = documents.get(doc_id)
     if not doc:
@@ -197,6 +246,7 @@ def get_document_full(doc_id):
     return jsonify(doc)
 
 @app.route('/api/documents/<doc_id>', methods=['DELETE'])
+@api_login_required
 def delete_document(doc_id):
     doc = documents.get(doc_id)
     if not doc:
@@ -230,10 +280,12 @@ def resolve_center(center_ref):
     return jsonify({'id': center['id']})
 
 @app.route('/api/centers', methods=['GET'])
+@api_login_required
 def get_centers():
     return jsonify(list(centers.values()))
 
 @app.route('/api/centers', methods=['POST'])
+@api_login_required
 def create_center():
     data = request.json or {}
     name = data.get('name', '').strip()
@@ -255,6 +307,7 @@ def create_center():
     return jsonify({'success': True, 'center': center})
 
 @app.route('/api/centers/<center_id>', methods=['PUT'])
+@api_login_required
 def update_center(center_id):
     center = centers.get(center_id)
     if not center:
@@ -268,6 +321,7 @@ def update_center(center_id):
     return jsonify({'success': True, 'center': center})
 
 @app.route('/api/centers/<center_id>', methods=['DELETE'])
+@api_login_required
 def delete_center(center_id):
     if center_id not in centers:
         return jsonify({'error': 'Not found'}), 404
@@ -276,6 +330,7 @@ def delete_center(center_id):
     return jsonify({'success': True})
 
 @app.route('/api/centers/<center_id>/assign', methods=['POST'])
+@api_login_required
 def assign_document(center_id):
     center = centers.get(center_id)
     if not center:
@@ -300,6 +355,7 @@ def assign_document(center_id):
     return jsonify({'success': True, 'center': center})
 
 @app.route('/api/centers/<center_id>/page', methods=['POST'])
+@api_login_required
 def set_page(center_id):
     center = centers.get(center_id)
     if not center:
