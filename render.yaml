@@ -2,7 +2,7 @@ services:
   - type: web
     name: assembly-hub
     runtime: python
-    buildCommand: apt-get install -y libreoffice && pip install -r requirements.txt
+    buildCommand: chmod +x build.sh && ./build.sh
     startCommand: python server.py
     plan: free
     envVars:

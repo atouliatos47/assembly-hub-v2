@@ -62,19 +62,24 @@ def doc_summary(doc):
 def convert_to_pdf(filepath):
     """Convert Excel or Word file to PDF using LibreOffice"""
     import subprocess
+    import shutil
+
+    lo = shutil.which('libreoffice') or shutil.which('soffice')
+    if not lo:
+        raise Exception('LibreOffice not installed on this server')
+
     out_dir = os.path.dirname(filepath)
     result = subprocess.run(
-        ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', out_dir, filepath],
+        [lo, '--headless', '--convert-to', 'pdf', '--outdir', out_dir, filepath],
         capture_output=True, text=True, timeout=60
     )
     if result.returncode != 0:
-        raise Exception(f'LibreOffice conversion failed: {result.stderr}')
+        raise Exception(f'Conversion failed: {result.stderr}')
 
-    # Find the generated PDF
     base = os.path.splitext(filepath)[0]
     pdf_path = base + '.pdf'
     if not os.path.exists(pdf_path):
-        raise Exception('PDF file not found after conversion')
+        raise Exception('PDF not found after conversion')
     return pdf_path
 
 def parse_file_to_pdf(filepath, original_name):
